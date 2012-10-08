@@ -16,14 +16,14 @@ start() ->
 
 % Running Server
 loop() ->
-  log('loop!'),
+  log('loop! ~n'),
   receive
     {From,{ getmsgid, RechnerID }} ->
-      log('getmsgid');
+      log('getmsgid ~n');
     {From,{ dropmessage, SenderID, Zeit, Nachricht, MessageID }} ->
-      log('dropmessage');
+      log('dropmessage ~n');
     {From,{ getmessages, RechnerID}} ->
-      log('getmessages')
+      log('getmessages ~n')
   end,
   loop().
 
@@ -34,7 +34,7 @@ pid() ->
   self().
 
 log(Message) ->
-  logging(logfile(), Message).
+  log(Message, []).
 log(Message, Data) ->
   logging(logfile(), io_lib:format(Message,Data)).
 
