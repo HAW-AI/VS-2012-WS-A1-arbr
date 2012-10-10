@@ -17,6 +17,27 @@ start() ->
 % Running Server
 loop() ->
   log('loop! ~n'),
+  % % Messages - "DeliveryQueue", list of Message in order for delivering
+  % % Cilents - Dict that maps ClientPID (From) to last sended MessageID
+  % % Wait - MessageID we are waiting for
+  % % Next - MessageID we give out next
+  % loop() ->
+  %   loop([],dict(),1,1).
+  % loop(Messages, Clients, Wait, Next) ->
+  %   receive
+  %     {From, { getmsgid, RechnerID }} ->
+  %       % return Next to From and increment Next
+  %       loop(Messages, Clients, Wait, Next+1);
+  %     {From,{ dropmessage, SenderID, Zeit, Nachricht, MessageID }} when MessageID == Wait ->
+  %       % append to messages and increment Wait
+  %       NewMessages = Messages,
+  %       loop(NewMessages, Clients, Wait+1, Next);
+  %     {From,{ getmessages, RechnerID}} when dict:fetch(From, Clients) <= Messages ->
+  %       % increment Clients[From]
+  %       NewClients = Clients,
+  %       loop(Messages, NewClients, Wait, Next);
+  %   end.
+
   receive
     {From,{ getmsgid, RechnerID }} ->
       log('getmsgid ~n');
