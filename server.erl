@@ -1,13 +1,21 @@
 -module(server).
 -author('Ben Rexin <benjamin.rexin@haw-hamburg.de>, Anton Romanov <anton.romanov@haw-hamburg.de>').
 -export([start/0]).
--import(werkzeug, [logging/2,timeMilliSecond/0]).
-
+-import(werkzeug, [logging/2,timeMilliSecond/0,get_config_value/2]).
+-record(server_config, {lifetime, clientlifetime, servername, dlqlimit, difftime}).
 % Start Server
 start() ->
   log('Server Startzeit: ~p mit PID ~p ~n',[ log_time(), pid() ]),
+    {ok, ConfigListe} = file:consult("server.cfg"),
+	{ok, LifeTime} = werkzeug:get_config_value(lifetime, ConfigListe),
+	{ok, ClientLifeTime} = werkzeug:get_config_value(clientlifetime, ConfigListe),
+	{ok, ServerName} = werkzeug:get_config_value(servername, ConfigListe),
+	{ok, DeliveryQueueLimit} = werkzeug:get_config_value(dlqlimit, ConfigListe),
+	{ok, DiffTime} = werkzeug:get_config_value(difftime, ConfigListe),
+	Config = #server_config{lifetime = LifeTime * 1000, clientlifetime = ClientLifeTime * 1000, servername = ServerName, 
+						dlqlimit = DeliveryQueueLimit, difftime = DiffTime * 1000},
 
-  register(wk, spawn(fun() -> loop() end)).
+  register(Config#server_config.servername, spawn(fun() -> loop(Config) end)).
   % spawn(fun() ->
   %   global:register_name(wk, pid()),
   %   loop()
@@ -15,7 +23,7 @@ start() ->
 
 
 % Running Server
-loop() ->
+loop(Config) ->
   log('loop! ~n'),
   % % Messages - "DeliveryQueue", list of Message in order for delivering
   % % Cilents - Dict that maps ClientPID (From) to last sended MessageID
@@ -44,9 +52,14 @@ loop() ->
     {From,{ dropmessage, SenderID, Zeit, Nachricht, MessageID }} ->
       log('dropmessage ~n');
     {From,{ getmessages, RechnerID}} ->
-      log('getmessages ~n')
+      log('getmessages ~n');
+	  Any ->
+		  log('Unbekannte Nachricht ~p~n', [Any])
+  after Config#server_config.lifetime ->
+		  log('Server wird heruntergefahren'),
+		  ok
   end,
-  loop().
+  loop(Config).
 
 log_time() ->
   timeMilliSecond().
