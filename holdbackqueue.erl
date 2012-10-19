@@ -1,5 +1,5 @@
 -module(holdbackqueue).
--export([start/1,loop/3,receivenext/3,checkqueue/3]).
+-export([start/1]).
 
 start(DLQ)	->	spawn(holdbackqueue,loop,[[],1,DLQ]).
 
