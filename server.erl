@@ -15,7 +15,7 @@ start() ->
 	Config = #server_config{lifetime = LifeTime * 1000, clientlifetime = ClientLifeTime * 1000, servername = ServerName, 
 						dlqlimit = DeliveryQueueLimit, difftime = DiffTime * 1000},
 
-  register(Config#server_config.servername, spawn(fun() -> loop(Config) end)).
+  register(Config#server_config.servername, spawn(fun() -> loop(Config,1) end)).
   % spawn(fun() ->
   %   global:register_name(wk, pid()),
   %   loop()
@@ -23,7 +23,7 @@ start() ->
 
 
 % Running Server
-loop(Config) ->
+loop(Config, NextMsgId) ->
   log('loop! ~n'),
   % % Messages - "DeliveryQueue", list of Message in order for delivering
   % % Cilents - Dict that maps ClientPID (From) to last sended MessageID
@@ -48,18 +48,22 @@ loop(Config) ->
 
   receive
     {From,{ getmsgid, RechnerID }} ->
-      log('getmsgid ~n');
+      log('getmsgid ~n'),
+	  From ! NextMsgId,
+	  loop(Config,NextMsgId+1);
     {From,{ dropmessage, SenderID, Zeit, Nachricht, MessageID }} ->
-      log('dropmessage ~n');
+      log('dropmessage ~n'),
+	  loop(Config,NextMsgId);
     {From,{ getmessages, RechnerID}} ->
-      log('getmessages ~n');
+      log('getmessages ~n'),
+	  loop(Config,NextMsgId);
 	  Any ->
-		  log('Unbekannte Nachricht ~p~n', [Any])
+		  log('Unbekannte Nachricht ~p~n', [Any]),
+		  loop(Config,NextMsgId)
   after Config#server_config.lifetime ->
 		  log('Server wird heruntergefahren'),
 		  ok
-  end,
-  loop(Config).
+  end.
 
 log_time() ->
   timeMilliSecond().
