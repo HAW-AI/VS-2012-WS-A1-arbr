@@ -14,8 +14,9 @@ start() ->
 	{ok, DiffTime} = werkzeug:get_config_value(difftime, ConfigListe),
 	Config = #server_config{lifetime = LifeTime * 1000, clientlifetime = ClientLifeTime * 1000, servername = ServerName, 
 						dlqlimit = DeliveryQueueLimit, difftime = DiffTime * 1000},
-
-  register(Config#server_config.servername, spawn(fun() -> loop(Config,1) end)).
+  DelQueue = deliveryqueue:start(Config#server_config.dlqlimit),
+  HoldbQueue = holdbackqueue:start(DelQueue),
+  register(Config#server_config.servername, spawn(fun() -> loop(Config,1,DelQueue,HoldbQueue) end)).
   % spawn(fun() ->
   %   global:register_name(wk, pid()),
   %   loop()
@@ -23,7 +24,7 @@ start() ->
 
 
 % Running Server
-loop(Config, NextMsgId) ->
+loop(Config, NextMsgId,DelQueue,HoldbQueue) ->
   log('loop! ~n'),
   % % Messages - "DeliveryQueue", list of Message in order for delivering
   % % Cilents - Dict that maps ClientPID (From) to last sended MessageID
@@ -50,16 +51,16 @@ loop(Config, NextMsgId) ->
     {From,{ getmsgid, RechnerID }} ->
       log('getmsgid ~n'),
 	  From ! NextMsgId,
-	  loop(Config,NextMsgId+1);
+	  loop(Config,NextMsgId+1,DelQueue,HoldbQueue);
     {From,{ dropmessage, SenderID, Zeit, Nachricht, MessageID }} ->
       log('dropmessage ~n'),
-	  loop(Config,NextMsgId);
+	  loop(Config,NextMsgId,DelQueue,HoldbQueue);
     {From,{ getmessages, RechnerID}} ->
       log('getmessages ~n'),
-	  loop(Config,NextMsgId);
+	  loop(Config,NextMsgId,DelQueue,HoldbQueue);
 	  Any ->
 		  log('Unbekannte Nachricht ~p~n', [Any]),
-		  loop(Config,NextMsgId)
+		  loop(Config,NextMsgId,DelQueue,HoldbQueue)
   after Config#server_config.lifetime ->
 		  log('Server wird heruntergefahren'),
 		  ok
