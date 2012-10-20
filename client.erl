@@ -30,7 +30,7 @@ start() ->
 							sendeintervall = Sendeintervall,
 							serverpid = ServerPID
 							},
-	loop_redakteur(Config#client_config.lifetime,Config).
+	ClientPID = spawn(fun() -> loop_redakteur(Config#client_config.lifetime,Config) end).
 
 %%
 %% Local Functions
@@ -39,9 +39,10 @@ loop_redakteur(5,Config) -> loop_leser(Config);
 loop_redakteur(MessageId,Config) ->
 	Config#client_config.serverpid ! {self(), {getmsgid},
 	receive
-		{From,{ getmsgid, RechnerID }} -> ok
-		end,
-	loop_redakteur(MessageId+1,Config).
+		{From,{ MsgID, RechnerID }} ->
+			Config#client_config.serverpid ! {self(), {dropmessage,'Nachricht',MsgID},
+			loop_redakteur(MessageId+1,Config)
+		end.
 	
 	
 loop_leser(Config) -> 
