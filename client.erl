@@ -22,7 +22,7 @@ start() ->
 	{ok, LifeTime} = werkzeug:get_config_value(lifetime, ConfigListe),
 	{ok, Servername} = werkzeug:get_config_value(servername, ConfigListe),
 	{ok, Sendeintervall} = werkzeug:get_config_value(sendeintervall, ConfigListe),
-	ServerPID = net_adm:ping(Config#client_config.servername),
+	ServerPID = net_adm:ping(Servername),
 	Config = #client_config{
 							clients = Clients,
 							lifetime = LifeTime,
@@ -35,7 +35,7 @@ start() ->
 %%
 %% Local Functions
 %%
-loop_redakteur(5,Config) -> loop_leser();
+loop_redakteur(5,Config) -> loop_leser(Config);
 loop_redakteur(MessageId,Config) ->
 	Config#client_config.serverpid ! {self(), {getmsgid},
 	receive
@@ -44,5 +44,10 @@ loop_redakteur(MessageId,Config) ->
 	loop_redakteur(MessageId+1,Config).
 	
 	
-loop_leser() -> ok.
+loop_leser(Config) -> 
+	Config#client_config.serverpid ! {self(), {getmessages},
+	receive
+		{From, {Message, true}} -> loop_leser(Config),
+		{From, {Message, _}} -> loop_redakteur(Config#client_config.lifetime,Config) 
+		end.
 
