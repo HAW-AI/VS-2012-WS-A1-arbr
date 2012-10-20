@@ -6,7 +6,7 @@
 %%
 %% Include files
 %%
-
+-import(werkzeug, [get_config_value/2]).
 %%
 %% Exported Functions
 %%
@@ -28,7 +28,7 @@ start() ->
 							servername = Servername,
 							sendeintervall = Sendeintervall
 							},
-	loop_redakteur(1).
+	loop_redakteur(Config#client_config.lifetime).
 
 %%
 %% Local Functions
