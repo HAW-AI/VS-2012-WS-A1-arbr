@@ -7,14 +7,18 @@
 % Start Server
 start() ->
   log('Server Startzeit: ~p mit PID ~p ~n',[ log_time(), pid() ]),
-    {ok, ConfigListe} = file:consult("server.cfg"),
-	{ok, LifeTime} = werkzeug:get_config_value(lifetime, ConfigListe),
+  {ok, ConfigListe} = file:consult("server.cfg"),
+  {ok, LifeTime} = werkzeug:get_config_value(lifetime, ConfigListe),
 	{ok, ClientLifeTime} = werkzeug:get_config_value(clientlifetime, ConfigListe),
 	{ok, ServerName} = werkzeug:get_config_value(servername, ConfigListe),
 	{ok, DeliveryQueueLimit} = werkzeug:get_config_value(dlqlimit, ConfigListe),
 	{ok, DiffTime} = werkzeug:get_config_value(difftime, ConfigListe),
-	Config = #server_config{lifetime = LifeTime * 1000, clientlifetime = ClientLifeTime * 1000, servername = ServerName,
-						dlqlimit = DeliveryQueueLimit, difftime = DiffTime * 1000},
+	Config = #server_config{
+    lifetime = LifeTime * 1000,
+    clientlifetime = ClientLifeTime * 1000,
+    servername = ServerName,
+		dlqlimit = DeliveryQueueLimit, difftime = DiffTime * 1000
+  },
   DelQueue = deliveryqueue:start(Config#server_config.dlqlimit),
   HoldbQueue = holdbackqueue:start(DelQueue),
   register(Config#server_config.servername, spawn(fun() -> loop(Config,1,DelQueue,HoldbQueue) end)).
