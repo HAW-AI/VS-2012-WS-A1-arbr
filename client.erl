@@ -11,7 +11,7 @@
 %% Exported Functions
 %%
 -export([start/0]).
--record(client_config, {clients, lifetime, servername, sendeintervall}).
+-record(client_config, {clients, lifetime, servername, sendeintervall, serverpid}).
 %%
 %% API Functions
 %%
@@ -22,24 +22,27 @@ start() ->
 	{ok, LifeTime} = werkzeug:get_config_value(lifetime, ConfigListe),
 	{ok, Servername} = werkzeug:get_config_value(servername, ConfigListe),
 	{ok, Sendeintervall} = werkzeug:get_config_value(sendeintervall, ConfigListe),
+	ServerPID = net_adm:ping(Config#client_config.servername),
 	Config = #client_config{
 							clients = Clients,
 							lifetime = LifeTime,
 							servername = Servername,
-							sendeintervall = Sendeintervall
+							sendeintervall = Sendeintervall,
+							serverpid = ServerPID
 							},
-	loop_redakteur(Config#client_config.lifetime).
+	loop_redakteur(Config#client_config.lifetime,Config).
 
 %%
 %% Local Functions
 %%
-loop_readkteur(5) -> loop_leser();
-loop_redakteur(MessageId) ->
+loop_redakteur(5,Config) -> loop_leser();
+loop_redakteur(MessageId,Config) ->
+	Config#client_config.serverpid ! {self(), {getmsgid},
 	receive
-		
-		end
-	loop_redakteur(MessageId+1).
+		{From,{ getmsgid, RechnerID }} -> ok
+		end,
+	loop_redakteur(MessageId+1,Config).
 	
 	
-loop_leser() -> .
+loop_leser() -> ok.
 
