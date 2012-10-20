@@ -19,27 +19,27 @@ start() ->
     servername = ServerName,
 		dlqlimit = DeliveryQueueLimit, difftime = DiffTime * 1000
   },
-  DelQueue = deliveryqueue:start(Config#server_config.dlqlimit),
-  HoldbQueue = holdbackqueue:start(DelQueue),
-  register(Config#server_config.servername, spawn(fun() -> loop(Config,1,DelQueue,HoldbQueue) end)).
+  DeliveryQueue = deliveryqueue:start(Config#server_config.dlqlimit),
+  HoldbackQueue = holdbackqueue:start(DeliveryQueue),
+  register(Config#server_config.servername, spawn(fun() -> loop(Config,1,DeliveryQueue,HoldbackQueue) end)).
 
 % Running Server
-loop(Config, NextMsgId, DelQueue, HoldbQueue) ->
+loop(Config, NextMsgId, DeliveryQueue, HoldbackQueue) ->
   log('loop! ~n'),
   receive
     {From,{ getmsgid, RechnerID }} ->
       log('getmsgid ~n'),
       From ! NextMsgId,
-      loop(Config,NextMsgId+1,DelQueue,HoldbQueue);
+      loop(Config,NextMsgId+1,DeliveryQueue,HoldbackQueue);
     {From,{ dropmessage, SenderID, Zeit, Nachricht, MessageID }} ->
       log('dropmessage ~n'),
-      loop(Config,NextMsgId,DelQueue,HoldbQueue);
+      loop(Config,NextMsgId,DeliveryQueue,HoldbackQueue);
     {From,{ getmessages, RechnerID}} ->
       log('getmessages ~n'),
-      loop(Config,NextMsgId,DelQueue,HoldbQueue);
+      loop(Config,NextMsgId,DeliveryQueue,HoldbackQueue);
 	  Any ->
 		  log('Unbekannte Nachricht ~p~n', [Any]),
-		  loop(Config,NextMsgId,DelQueue,HoldbQueue)
+		  loop(Config,NextMsgId,DeliveryQueue,HoldbackQueue)
   after Config#server_config.lifetime ->
 		  log('Server wird heruntergefahren'),
 		  ok
