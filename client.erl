@@ -40,15 +40,16 @@ loop_redakteur(MessageId,Config) ->
 	Config#client_config.serverpid ! {self(), {getmsgid},
 	receive
 		{From,{ MsgID, RechnerID }} ->
-			Config#client_config.serverpid ! {self(), {dropmessage,'Nachricht',MsgID},
-			loop_redakteur(MessageId+1,Config)
-		end.
+			Config#client_config.serverpid ! {self(), {dropmessage,'Nachricht',MsgID}},
+			loop_redakteur(MessageId+1,Config);
+		Any -> ok
+	end.
 	
 	
 loop_leser(Config) -> 
 	Config#client_config.serverpid ! {self(), {getmessages},
 	receive
-		{From, {Message, true}} -> loop_leser(Config),
-		{From, {Message, _}} -> loop_redakteur(Config#client_config.lifetime,Config) 
-		end.
+		{From, {Message, true}} -> loop_leser(Config);
+		{From, {Message, _}} -> loop_redakteur(Config#client_config.lifetime,Config)
+	end.
 
