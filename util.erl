@@ -1,6 +1,11 @@
 -module(util).
 -author("Ben Rexin <benjamin.rexin@haw-hamburg.de>").
 -compile([export_all]).
+-import(werkzeug, [logging/2]).
+
+log(File, Message) -> log(File, Message, []).
+log(File, Message, Data) ->
+  logging(File, io_lib:format("[~s] "++Message++"~n",[timestamp()]++Data)).
 
 timestamp() ->
   {Year, Month, Day} = date(),
