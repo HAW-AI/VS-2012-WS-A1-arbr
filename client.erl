@@ -39,7 +39,7 @@ start() ->
 loop_redakteur(5,Config) -> loop_leser(Config);
 loop_redakteur(MessageId,Config) ->
 	log('Redakteur ist dran'),
-	sleep(Config#client_config.sendeintervall),
+	sleep(newTime(Config#client_config.sendeintervall,random:uniform(2))),
 	Config#client_config.serverpid ! {self(), {getmsgid, inet:gethostname()},
 	receive
 		{From,{ MsgID, RechnerID }} when is_number(MsgID)->
@@ -81,5 +81,8 @@ sleep(T) ->
 
 getMessage(MsgID) when is_number(MsgID) ->
 	[inet:gethostname()]++" "++[MsgID]++"te Nachricht. Sendezeit: "++werkzeug:timeMilliSecond()++" (Team 14)".
-	
 
+newTime(Time,2) when Time>2000 -> Time/2;
+newTime(Time,1) -> Time*2;
+newTime(Time, _) -> Time.
+	
