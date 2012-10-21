@@ -80,7 +80,7 @@ sleep(T) ->
 	end.
 
 getMessage(MsgID) when is_number(MsgID) ->
-	[inet:gethostname()]++" "++[MsgID]++"te Nachricht. Sendezeit: "++werkzeug:timeMilliSecond()++" (Team 14)".
+	'client@'++[inet:gethostname()]++" "++[MsgID]++"te Nachricht. Sendezeit: "++werkzeug:timeMilliSecond()++" (Team 14)".
 
 newTime(Time,2) when Time>2000 -> Time/2;
 newTime(Time,1) -> Time*2;
