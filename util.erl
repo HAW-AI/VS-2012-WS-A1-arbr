@@ -5,7 +5,7 @@
 
 log(File, Message) -> log(File, Message, []).
 log(File, Message, Data) ->
-  logging(File, io_lib:format("[~s] "++Message++"~n",[timestamp()]++Data)).
+  logging(File, io_lib:format("[~s] (~p) "++Message++"~n",[timestamp(),self()]++Data)).
 
 timestamp() ->
   {Year, Month, Day} = date(),
