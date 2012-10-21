@@ -41,9 +41,6 @@ loop(State) ->
 		  ok
   end.
 
-pid() ->
-  self().
-
 log_client(PID, Message) -> log_client(PID, Message, []).
 log_client(PID, Message, Data) ->
   log("Client(~p) "++Message, [PID]++Data).
