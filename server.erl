@@ -1,64 +1,57 @@
 -module(server).
--author('Ben Rexin <benjamin.rexin@haw-hamburg.de>, Anton Romanov <anton.romanov@haw-hamburg.de>').
--export([start/0]).
--import(werkzeug, [logging/2,timeMilliSecond/0,get_config_value/2]).
--record(server_config, {lifetime, clientlifetime, servername, dlqlimit, difftime,clientlist}).
+-author("Ben Rexin <benjamin.rexin@haw-hamburg.de>, Anton Romanov <anton.romanov@haw-hamburg.de>").
+
+%-import(proplists).
+-import(util, [log/3]).
+-compile([export_all]).
+
+-record(state,{
+    config
+  }).
 
 % Start Server
 start() ->
-  log('Server Startzeit: ~p mit PID ~p ~n',[ log_time(), pid() ]),
-  {ok, ConfigListe} = file:consult("server.cfg"),
-  {ok, LifeTime} = werkzeug:get_config_value(lifetime, ConfigListe),
-	{ok, ClientLifeTime} = werkzeug:get_config_value(clientlifetime, ConfigListe),
-	{ok, ServerName} = werkzeug:get_config_value(servername, ConfigListe),
-	{ok, DeliveryQueueLimit} = werkzeug:get_config_value(dlqlimit, ConfigListe),
-	{ok, DiffTime} = werkzeug:get_config_value(difftime, ConfigListe),
-	Config = #server_config{
-    lifetime = LifeTime * 1000,
-    clientlifetime = ClientLifeTime * 1000,
-    servername = ServerName,
-		dlqlimit = DeliveryQueueLimit, difftime = DiffTime * 1000, clinetlist = dict:new()
-  },
-  DeliveryQueue = deliveryqueue:start(Config#server_config.dlqlimit),
-  HoldbackQueue = holdbackqueue:start(DeliveryQueue),
-  register(Config#server_config.servername, spawn(fun() -> loop(Config,1,DeliveryQueue,HoldbackQueue) end)).
+  {ok, Config} = file:consult('server.cfg'),
+  State = #state{config=Config},
+  register(proplists:get_value(servername, Config), spawn(fun() -> log("Server gestartet."), loop(State) end)).
 
 % Running Server
-loop(Config, NextMsgId, DeliveryQueue, HoldbackQueue) ->
-  log('loop! ~n'),
+loop(State) ->
   receive
-    {From,{ getmsgid, RechnerID }} ->
-      log('getmsgid ~n'),
-	  case Config#server_config.clinetlist:find(From) of
-		  {ok, Client} -> ; %client ist schon bekannt
-		  error -> Config#server_config.clientlist:store(From)
-	  end,
-      From ! NextMsgId,
-      loop(Config,NextMsgId+1,DeliveryQueue,HoldbackQueue);
-    {From,{ dropmessage, SenderID, Zeit, Nachricht, MessageID }} ->
-      log('dropmessage ~n'),
-      loop(Config,NextMsgId,DeliveryQueue,HoldbackQueue);
-    {From,{ getmessages, RechnerID}} ->
-      log('getmessages ~n'),
-      loop(Config,NextMsgId,DeliveryQueue,HoldbackQueue);
+     { getmsgid, PID } ->
+      log_client(PID,"getmsgid"),
+      PID ! 0,
+      loop(State);
+
+    { dropmessage, PID, Message, ID } ->
+      log_client(PID,"dropmessage {ID ~p, Message ~p}", [ID, Message]),
+      loop(State);
+
+    { getmessages, PID } ->
+      log_client(PID,"getmessages"),
+      PID ! { "Nothing", true },
+      loop(State);
+
 	  Any ->
-		  log('Unbekannte Nachricht ~p~n', [Any]),
-		  loop(Config,NextMsgId,DeliveryQueue,HoldbackQueue)
-  after Config#server_config.lifetime ->
-		  log('Server wird heruntergefahren'),
+		  log("Unbekannte Nachricht ~p", [Any]),
+		  loop(State)
+
+  after proplists:get_value(lifetime, State#state.config) * 1000 ->
+		  log("Server wird heruntergefahren"),
 		  ok
   end.
-
-log_time() ->
-  timeMilliSecond().
 
 pid() ->
   self().
 
+log_client(PID, Message) -> log_client(PID, Message, []).
+log_client(PID, Message, Data) ->
+  log("Client(~p) "++Message, [PID]++Data).
+
 log(Message) ->
   log(Message, []).
 log(Message, Data) ->
-  logging(logfile(), io_lib:format(Message,Data)).
+  util:log(logfile(), Message, Data).
 
 logfile() ->
   'NServer.log'.
