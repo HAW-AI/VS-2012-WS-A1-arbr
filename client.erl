@@ -6,7 +6,7 @@
 %%
 %% Include files
 %%
--import(werkzeug, [get_config_value/2, logging/2]).
+-import(werkzeug, [get_config_value/2, logging/2,timeMilliSecond/0]).
 %%
 %% Exported Functions
 %%
@@ -31,7 +31,7 @@ start() ->
 							serverpid = ServerPID
 							},
 	log('Client wird gestartet'),
-	ClientPID = spawn(fun() -> client:loop_redakteur(Config#client_config.lifetime,Config) end).
+	ClientPID = spawn(fun() -> client:loop_redakteur(1,Config) end).
 
 %%
 %% Local Functions
@@ -39,12 +39,19 @@ start() ->
 loop_redakteur(5,Config) -> loop_leser(Config);
 loop_redakteur(MessageId,Config) ->
 	log('Redakteur ist dran'),
-	Config#client_config.serverpid ! {self(), {getmsgid},
+	sleep(Config#client_config.sendeintervall),
+	Config#client_config.serverpid ! {self(), {getmsgid, inet:gethostname()},
 	receive
 		{From,{ MsgID, RechnerID }} when is_number(MsgID)->
-			Config#client_config.serverpid ! {self(), {dropmessage,'Nachricht',MsgID}},
+			Config#client_config.serverpid ! {self(), {dropmessage,getMessage(MsgID),MsgID}},
+			log(io_lib:format("Nachricht ~p wurde an ~p  gesendet ~n", [MsgID, Config#client_config.serverpid])),
 			loop_redakteur(MessageId+1,Config);
-		Any -> ok
+		Any -> 
+			log('Redakteur hat unbekannte nachricht empfangen'),
+			loop_redakteur(MessageId,Config)
+	after Config#client_config.lifetime -> 
+			log('Client wird heruntergefahren'),
+			ok
 	end.
 	
 	
@@ -52,13 +59,27 @@ loop_leser(Config) ->
 	log('Leser ist dran'),
 	Config#client_config.serverpid ! {self(), {getmessages},
 	receive
-		{From, {Message, true}} -> loop_leser(Config);
-		{From, {Message, false}} -> loop_redakteur(Config#client_config.lifetime,Config);
-		Any -> loop_leser(Config) %Fehlermeldung anzeigen
+		{From, {Message, true}} -> 
+			log(io_lib:format("Nachricht ~p wurde von ~p empfangen ~n",[Message, From])),
+			loop_leser(Config);
+		{From, {Message, false}} -> loop_redakteur(1,Config);
+		Any -> 
+			log('Unbekannte Nachricht wurde vom Leser empfangen'),
+			loop_leser(Config)
 	after Config#client_config.lifetime -> 
-			ok %Client wird heruntergefahren
+			log('Client wird heruntergefahren'),
+			ok
 	end.
 
 log(Inhalt) ->
-	werkzeug:logging('Client'++[self()], Inhalt).
+	werkzeug:logging('Client_'++[self()]++'.log', Inhalt).
+
+sleep(T) ->
+	receive
+		after T -> ok
+	end.
+
+getMessage(MsgID) when is_number(MsgID) ->
+	[inet:gethostname()]++" "++[MsgID]++"te Nachricht. Sendezeit: "++werkzeug:timeMilliSecond()++" (Team 14)".
+	
 
