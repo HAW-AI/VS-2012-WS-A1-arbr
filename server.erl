@@ -22,13 +22,14 @@ start() ->
 loop(State) ->
   receive
      { getmsgid, PID } ->
-      Current_message_id = State#state.current_message_id,
-      log_client(PID, "getmsgid {ID ~p}", [Current_message_id]),
-      PID ! Current_message_id,
-      loop(State#state{current_message_id=Current_message_id+1});
+      CurrentMessageID = State#state.current_message_id,
+      log_client(PID, "getmsgid {ID ~p}", [CurrentMessageID]),
+      PID ! CurrentMessageID,
+      loop(State#state{current_message_id=CurrentMessageID+1});
 
     { dropmessage, PID, Message, ID } ->
       log_client(PID, "dropmessage {ID ~p, Message ~p}", [ID, Message]),
+
       loop(State);
 
     { getmessages, PID } ->
