@@ -7,7 +7,7 @@
 
 -record(state,{
     config,
-    current_message_id=0
+    currentMessageID=0,
   }).
 
 % Start Server
@@ -22,14 +22,13 @@ start() ->
 loop(State) ->
   receive
      { getmsgid, PID } ->
-      CurrentMessageID = State#state.current_message_id,
+      CurrentMessageID = State#state.currentMessageID,
       log_client(PID, "getmsgid {ID ~p}", [CurrentMessageID]),
       PID ! CurrentMessageID,
-      loop(State#state{current_message_id=CurrentMessageID+1});
+      loop(State#state{currentMessageID=CurrentMessageID+1});
 
     { dropmessage, PID, Message, ID } ->
       log_client(PID, "dropmessage {ID ~p, Message ~p}", [ID, Message]),
-
       loop(State);
 
     { getmessages, PID } ->
