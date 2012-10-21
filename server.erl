@@ -2,7 +2,7 @@
 -author('Ben Rexin <benjamin.rexin@haw-hamburg.de>, Anton Romanov <anton.romanov@haw-hamburg.de>').
 -export([start/0]).
 -import(werkzeug, [logging/2,timeMilliSecond/0,get_config_value/2]).
--record(server_config, {lifetime, clientlifetime, servername, dlqlimit, difftime}).
+-record(server_config, {lifetime, clientlifetime, servername, dlqlimit, difftime,clientlist}).
 
 % Start Server
 start() ->
@@ -17,7 +17,7 @@ start() ->
     lifetime = LifeTime * 1000,
     clientlifetime = ClientLifeTime * 1000,
     servername = ServerName,
-		dlqlimit = DeliveryQueueLimit, difftime = DiffTime * 1000
+		dlqlimit = DeliveryQueueLimit, difftime = DiffTime * 1000, clinetlist = dict:new()
   },
   DeliveryQueue = deliveryqueue:start(Config#server_config.dlqlimit),
   HoldbackQueue = holdbackqueue:start(DeliveryQueue),
@@ -29,6 +29,10 @@ loop(Config, NextMsgId, DeliveryQueue, HoldbackQueue) ->
   receive
     {From,{ getmsgid, RechnerID }} ->
       log('getmsgid ~n'),
+	  case Config#server_config.clinetlist:find(From) of
+		  {ok, Client} -> ; %client ist schon bekannt
+		  error -> Config#server_config.clientlist:store(From)
+	  end,
       From ! NextMsgId,
       loop(Config,NextMsgId+1,DeliveryQueue,HoldbackQueue);
     {From,{ dropmessage, SenderID, Zeit, Nachricht, MessageID }} ->
