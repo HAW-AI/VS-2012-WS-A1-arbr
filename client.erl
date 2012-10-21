@@ -6,7 +6,7 @@
 %%
 %% Include files
 %%
--import(werkzeug, [get_config_value/2]).
+-import(werkzeug, [get_config_value/2, logging/2]).
 %%
 %% Exported Functions
 %%
@@ -30,26 +30,35 @@ start() ->
 							sendeintervall = Sendeintervall,
 							serverpid = ServerPID
 							},
-	ClientPID = spawn(fun() -> loop_redakteur(Config#client_config.lifetime,Config) end).
+	log('Client wird gestartet'),
+	ClientPID = spawn(fun() -> client:loop_redakteur(Config#client_config.lifetime,Config) end).
 
 %%
 %% Local Functions
 %%
 loop_redakteur(5,Config) -> loop_leser(Config);
 loop_redakteur(MessageId,Config) ->
+	log('Redakteur ist dran'),
 	Config#client_config.serverpid ! {self(), {getmsgid},
 	receive
-		{From,{ MsgID, RechnerID }} ->
+		{From,{ MsgID, RechnerID }} when is_number(MsgID)->
 			Config#client_config.serverpid ! {self(), {dropmessage,'Nachricht',MsgID}},
 			loop_redakteur(MessageId+1,Config);
 		Any -> ok
 	end.
 	
 	
-loop_leser(Config) -> 
+loop_leser(Config) ->
+	log('Leser ist dran'),
 	Config#client_config.serverpid ! {self(), {getmessages},
 	receive
 		{From, {Message, true}} -> loop_leser(Config);
-		{From, {Message, _}} -> loop_redakteur(Config#client_config.lifetime,Config)
+		{From, {Message, false}} -> loop_redakteur(Config#client_config.lifetime,Config);
+		Any -> loop_leser(Config) %Fehlermeldung anzeigen
+	after Config#client_config.lifetime -> 
+			ok %Client wird heruntergefahren
 	end.
+
+log(Inhalt) ->
+	werkzeug:logging('Client'++[self()], Inhalt).
 
