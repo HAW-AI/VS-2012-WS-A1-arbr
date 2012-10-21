@@ -14,7 +14,9 @@
 start() ->
   {ok, Config} = file:consult('server.cfg'),
   State = #state{config=Config},
-  register(proplists:get_value(servername, Config), spawn(fun() -> log("Server gestartet."), loop(State) end)).
+  PID = spawn(fun() -> log("Server gestartet."), loop(State) end),
+  register(proplists:get_value(servername, Config), PID),
+  PID.
 
 % Running Server
 loop(State) ->
