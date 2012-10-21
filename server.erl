@@ -6,7 +6,8 @@
 -compile([export_all]).
 
 -record(state,{
-    config
+    config,
+    current_message_id=0
   }).
 
 % Start Server
@@ -19,9 +20,10 @@ start() ->
 loop(State) ->
   receive
      { getmsgid, PID } ->
-      log_client(PID,"getmsgid"),
-      PID ! 0,
-      loop(State);
+      Current_message_id = State#state.current_message_id,
+      log_client(PID,"getmsgid {ID ~p}",[Current_message_id]),
+      PID ! Current_message_id,
+      loop(State#state{current_message_id=Current_message_id+1});
 
     { dropmessage, PID, Message, ID } ->
       log_client(PID,"dropmessage {ID ~p, Message ~p}", [ID, Message]),
