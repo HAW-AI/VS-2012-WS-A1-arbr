@@ -8,6 +8,7 @@
 -record(state,{
     config,
     currentMessageID=0,
+    holdbackQueue=orddict:new()
   }).
 
 % Start Server
@@ -29,7 +30,8 @@ loop(State) ->
 
     { dropmessage, PID, Message, ID } ->
       log_client(PID, "dropmessage {ID ~p, Message ~p}", [ID, Message]),
-      loop(State);
+      NewHoldbackQueue = orddict:append(ID, Message, State#state.holdbackQueue),
+      loop(State#state{holdbackQueue=NewHoldbackQueue});
 
     { getmessages, PID } ->
       log_client(PID, "getmessages"),
