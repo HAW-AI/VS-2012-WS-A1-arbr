@@ -35,7 +35,7 @@ loop(State) ->
 
     { getmessages, PID } ->
       log_client(PID, "getmessages"),
-      PID ! { "Nothing", true },
+      PID ! { "Nothing", false },
       loop(State);
 
 	  Any ->
