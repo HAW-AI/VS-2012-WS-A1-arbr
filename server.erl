@@ -29,7 +29,7 @@ loop(State) ->
       loop(State#state{currentMessageID=CurrentMessageID+1});
 
     { dropmessage, { Message, ID }} ->
-      log_client(PID, "dropmessage {ID ~p, Message ~p}", [ID, Message]),
+      log("dropmessage {ID ~p, Message ~p}", [ID, Message]),
       NewHoldbackQueue = orddict:append(ID, Message, State#state.holdbackQueue),
       loop(State#state{holdbackQueue=NewHoldbackQueue});
 
