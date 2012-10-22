@@ -10,7 +10,7 @@
 %%
 %% Exported Functions
 %%
--export([start/1]).
+-export([start/1,loop_redakteur/2]).
 -record(client_config, {clients, lifetime, servername, sendeintervall, serverpid}).
 %%
 %% API Functions
@@ -30,7 +30,8 @@ start(ServerPID) ->
 							serverpid = ServerPID
 							},
 	log('Client wird gestartet'),
-	ClientPID = spawn(fun() -> client:loop_redakteur(1,Config) end).
+	ClientPID = spawn(fun() -> client:loop_redakteur(1,Config) end),
+	ClientPID.
 
 %%
 %% Local Functions
@@ -47,7 +48,7 @@ loop_redakteur(MessageId,Config) ->
 			log(io_lib:format("Nachricht ~p wurde an ~p  gesendet ~n", [MsgID, Config#client_config.serverpid])),
 			loop_redakteur(MessageId+1,Config);
 		Any -> 
-			log('Redakteur hat unbekannte nachricht empfangen'),
+			log(io_lib:format("Redakteur hat unbekannte nachricht ~p empfangen ~n",[Any])),
 			loop_redakteur(MessageId,Config)
 	after Config#client_config.lifetime * 1000 -> 
 			log('Client wird heruntergefahren'),
@@ -66,7 +67,7 @@ loop_leser(Config) ->
 			log(io_lib:format("Nachricht ~p wurde empfangen ~n",[Message])),
 			loop_redakteur(1,Config);
 		Any -> 
-			log('Unbekannte Nachricht wurde vom Leser empfangen'),
+			log(io_lib:format("Unbekannte Nachricht ~p  wurde vom Leser empfangen ~n",[Any])),
 			loop_leser(Config)
 	after Config#client_config.lifetime * 1000 ->
 			log('Client wird heruntergefahren'),
