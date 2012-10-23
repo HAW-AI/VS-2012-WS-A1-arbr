@@ -3,34 +3,39 @@
 %% Description: TODO: Add description to client
 -module(client).
 
+%            cd('C:/Users/Mond/git/VS-2012-WS-A1-arbr').
 %%
 %% Include files
 %%
--import(werkzeug, [get_config_value/2, logging/2,timeMilliSecond/0]).
+-import(werkzeug, [get_config_value/2, logging/2, timeMilliSecond/0]).
+-import(util, [timestamp/0]).
 %%
 %% Exported Functions
 %%
--export([start/1,loop_redakteur/2]).
--record(client_config, {clients, lifetime, servername, sendeintervall, serverpid}).
+%-export([start/1,loop_redakteur/2]).
+-compile([export_all]).
+-record(client_config, {clients, lifetime, servername, sendeintervall, serverpid, starttime}).
+
 %%
 %% API Functions
 %%
 
 start(ServerPID) ->
 	{ok, ConfigListe} = file:consult("client.cfg"),
-	{ok, Clients} = werkzeug:get_config_value(clients, ConfigListe),
-	{ok, LifeTime} = werkzeug:get_config_value(lifetime, ConfigListe),
-	{ok, Servername} = werkzeug:get_config_value(servername, ConfigListe),
-	{ok, Sendeintervall} = werkzeug:get_config_value(sendeintervall, ConfigListe),
+	Clients = proplists:get_value(clients, ConfigListe),
+	LifeTime = proplists:get_value(lifetime, ConfigListe),
+	Servername = proplists:get_value(servername, ConfigListe),
+	Sendeintervall = proplists:get_value(sendeintervall, ConfigListe),
+	{_,StartTime,_} = now(),
 	Config = #client_config{
 							clients = Clients,
-							lifetime = LifeTime,
+							lifetime = LifeTime * 1000,
 							servername = Servername,
 							sendeintervall = Sendeintervall,
-							serverpid = ServerPID
-							},
-	log('Client wird gestartet'),
-	ClientPID = spawn(fun() -> client:loop_redakteur(1,Config) end),
+							serverpid = ServerPID,
+							starttime = StartTime * 1000},
+	log("Client wird gestartet"),
+	ClientPID = spawn(fun() -> log("Client gestartet"), loop_redakteur(1,Config) end),
 	ClientPID.
 
 %%
@@ -38,44 +43,38 @@ start(ServerPID) ->
 %%
 loop_redakteur(5,Config) -> loop_leser(Config);
 loop_redakteur(MessageId,Config) ->
-	log('Redakteur ist dran'),
 	SleepTime = newTime(Config#client_config.sendeintervall,random:uniform(2)),
 	sleep(SleepTime),
-	Config#client_config.serverpid ! {self(), getmsgid},
+	Config#client_config.serverpid ! {getmsgid, self()},
 	receive
-		{MsgID} when is_number(MsgID)->
-			Config#client_config.serverpid ! {dropmessage, getMessage(MsgID), MsgID},
-			log(io_lib:format("Nachricht ~p wurde an ~p  gesendet ~n", [MsgID, Config#client_config.serverpid])),
-			loop_redakteur(MessageId+1,Config);
+		MsgID when is_number(MsgID)->
+			Config#client_config.serverpid ! {dropmessage, {getMessage(MsgID), MsgID}},
+			log_redakteur("Nachricht ~p wurde an ~p  gesendet", [MsgID, Config#client_config.serverpid]),
+			{_,TimeNow,_} = now(),
+			Timeout = timeout(TimeNow * 1000, Config#client_config.starttime, Config#client_config.lifetime),
+			if Timeout ->
+				   loop_redakteur(MessageId+1,Config);
+			   true -> log_redakteur("wird heruntergefahren")
+			end;
 		Any -> 
-			log(io_lib:format("Redakteur hat unbekannte nachricht ~p empfangen ~n",[Any])),
+			log_redakteur("Redakteur hat unbekannte nachricht ~p empfangen",[Any]),
 			loop_redakteur(MessageId,Config)
-	after Config#client_config.lifetime * 1000 -> 
-			log('Client wird heruntergefahren'),
-			ok
 	end.
 	
 	
 loop_leser(Config) ->
-	log('Leser ist dran'),
 	Config#client_config.serverpid ! {getmessages,self()},
 	receive
 		{Message, true} -> 
-			log(io_lib:format("Nachricht ~p wurde empfangen ~n",[Message])),
+			log_leser("Nachricht ~p wurde empfangen",[Message]),
 			loop_leser(Config);
 		{Message, false} -> 
-			log(io_lib:format("Nachricht ~p wurde empfangen ~n",[Message])),
+			log_leser("Nachricht ~p wurde empfangen",[Message]),
 			loop_redakteur(1,Config);
 		Any -> 
-			log(io_lib:format("Unbekannte Nachricht ~p  wurde vom Leser empfangen ~n",[Any])),
+			log_leser("Unbekannte Nachricht ~p  wurde vom Leser empfangen",[Any]),
 			loop_leser(Config)
-	after Config#client_config.lifetime * 1000 ->
-			log('Client wird heruntergefahren'),
-			ok
 	end.
-
-log(Inhalt) ->
-	werkzeug:logging('Client_'++[self()]++'.log', Inhalt).
 
 sleep(T) ->
 	receive
@@ -83,8 +82,31 @@ sleep(T) ->
 	end.
 
 getMessage(MsgID) when is_number(MsgID) ->
-	'client@'++[inet:gethostname()]++" "++[MsgID]++"te Nachricht. Sendezeit: "++werkzeug:timeMilliSecond()++" (Team 14)".
+	{ok, Name} = inet:gethostname(),
+	lists:flatten(io_lib:format("client@~s ~p ~pte Nachricht. Sendezeit: ~s (Team 14)",[Name, self(), MsgID, util:timestamp()])).
+
+log_redakteur(Message) -> log_redakteur(Message, []).
+log_redakteur(Message, Data) ->
+	log("Redakteur: " ++ Message, Data).
+
+log_leser(Message) -> log_leser(Message, []).
+log_leser(Message, Data) ->
+	log("Leser: " ++ Message, Data).
+
+log(Message) ->
+  log(Message, []).
+log(Message, Data) ->
+  util:log(logfile(), Message, Data).
+
+logfile() ->
+  'NClient.log'.
 
 newTime(Time,2) when Time>2000 -> Time/2;
 newTime(Time,1) -> Time*2;
 newTime(Time, _) -> Time.
+
+timeout(TimeNow, StartTime, LifeTime) ->
+	log("TimeNow: ~p | StartTime: ~p | LifeTime: ~p | Redundanz: ~p | Boolean: ~p",[TimeNow,StartTime,LifeTime,TimeNow-StartTime,(TimeNow - StartTime) < LifeTime]),
+	if (TimeNow - StartTime) < LifeTime -> true;
+	   true -> false
+	end.
