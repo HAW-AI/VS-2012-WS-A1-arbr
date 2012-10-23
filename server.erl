@@ -31,7 +31,7 @@ loop(State) ->
 
     { dropmessage, { Message, ID }} ->
       log("dropmessage {ID ~p, Message ~p}", [ID, Message]),
-      NewHoldbackQueue = orddict:append(ID, Message, State#state.holdbackQueue),
+      NewHoldbackQueue = append_message(ID, Message, State#state.holdbackQueue),
       loop(State#state{holdbackQueue=NewHoldbackQueue});
 
     { getmessages, PID } ->
@@ -51,6 +51,9 @@ loop(State) ->
 		  log("Server wird heruntergefahren"),
 		  ok
   end.
+
+append_message(Id, Message, Queue) ->
+  orddict:append(Id, Message, Queue).
 
 register_shudown(Pid, After) ->
   timer:send_after(After, Pid, shutdown).
