@@ -59,7 +59,7 @@ loop_redakteur(MessageId,Config) ->
 			   true -> log_redakteur("wird heruntergefahren")
 			end;
 		Any -> 
-			log_redakteur("Redakteur hat unbekannte nachricht ~p empfangen",[Any]),
+			log_redakteur("hat unbekannte nachricht ~p empfangen",[Any]),
 			loop_redakteur(MessageId,Config)
 	end.
 	
@@ -74,7 +74,7 @@ loop_leser(Config) ->
 			log_leser("Nachricht ~p wurde empfangen",[Message]),
 			loop_redakteur(1,Config);
 		Any -> 
-			log_leser("Unbekannte Nachricht ~p  wurde vom Leser empfangen",[Any]),
+			log_leser("Unbekannte Nachricht ~p  wurde empfangen",[Any]),
 			loop_leser(Config)
 	end.
 
