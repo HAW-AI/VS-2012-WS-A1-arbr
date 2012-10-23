@@ -17,6 +17,7 @@ start() ->
   State = #state{config=Config},
   PID = spawn(fun() -> log("Server gestartet."), loop(State) end),
   register(proplists:get_value(servername, Config), PID),
+  register_shudown(PID, proplists:get_value(lifetime, State#state.config)),
   PID.
 
 % Running Server
@@ -38,14 +39,21 @@ loop(State) ->
       PID ! { "Nothing", false },
       loop(State);
 
+    { shutdown } ->
+      log("shuting down"),
+      exit(0);
+
 	  Any ->
 		  log("Unbekannte Nachricht ~p", [Any]),
 		  loop(State)
 
-  after proplists:get_value(lifetime, State#state.config) * 1000 ->
+  after proplists:get_value(difftime, State#state.config) * 1000 ->
 		  log("Server wird heruntergefahren"),
 		  ok
   end.
+
+register_shudown(Pid, After) ->
+  timer:send_after(After, Pid, shutdown).
 
 log_client(PID, Message) -> log_client(PID, Message, []).
 log_client(PID, Message, Data) ->
