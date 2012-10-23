@@ -56,7 +56,7 @@ append_message(Id, Message, Queue) ->
   orddict:append(Id, Message, Queue).
 
 register_shudown(Pid, After) ->
-  timer:send_after(After, Pid, shutdown).
+  timer:send_after(After, Pid, {shutdown}).
 
 log_client(PID, Message) -> log_client(PID, Message, []).
 log_client(PID, Message, Data) ->
