@@ -12,7 +12,7 @@ timestamp() ->
   {Hour, Minute, Second} = time(),
   lists:flatten(
     io_lib:format("~4..0w-~2..0w-~2..0w ~2..0w:~2..0w:~2..0w",[Year, Month, Day, Hour, Minute, Second])
-  )++":"++millisec().
+  )++","++millisec().
 
 millisec() ->
   {_, _, MicroSec} = now(),
