@@ -19,8 +19,8 @@
 %%
 %% API Functions
 %%
-
-start(ServerPID) ->
+start(ServerPID)-> start(1, ServerPID).
+start(ClientNr, ServerPID) when is_number(ClientNr)->
 	{ok, ConfigListe} = file:consult("client.cfg"),
 	Clients = proplists:get_value(clients, ConfigListe),
 	LifeTime = proplists:get_value(lifetime, ConfigListe),
@@ -34,9 +34,11 @@ start(ServerPID) ->
 							sendeintervall = Sendeintervall,
 							serverpid = ServerPID,
 							starttime = StartTime * 1000},
-	log("Client wird gestartet"),
-	ClientPID = spawn(fun() -> log("Client gestartet"), loop_redakteur(1,Config) end),
-	ClientPID.
+	spawn(fun() -> log("Client ~p (~p)gestartet",[self(), ClientNr]), loop_redakteur(1,Config) end),
+	if ClientNr < Config#client_config.clients ->
+		   start(ClientNr+1, ServerPID);
+	   true -> ok
+	end.
 
 %%
 %% Local Functions
@@ -106,7 +108,7 @@ newTime(Time,1) -> Time*2;
 newTime(Time, _) -> Time.
 
 timeout(TimeNow, StartTime, LifeTime) ->
-	log("TimeNow: ~p | StartTime: ~p | LifeTime: ~p | Redundanz: ~p | Boolean: ~p",[TimeNow,StartTime,LifeTime,TimeNow-StartTime,(TimeNow - StartTime) < LifeTime]),
+	%log("TimeNow: ~p | StartTime: ~p | LifeTime: ~p | Redundanz: ~p | Boolean: ~p",[TimeNow,StartTime,LifeTime,TimeNow-StartTime,(TimeNow - StartTime) < LifeTime]),
 	if (TimeNow - StartTime) < LifeTime -> true;
 	   true -> false
 	end.
