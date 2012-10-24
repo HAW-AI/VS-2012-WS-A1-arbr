@@ -48,7 +48,7 @@ start() ->
 loop(State) ->
   % TODO: Update KnownClients.
 
-  d("Debug: Hq(~B) Dq(~B)",[ orddict:size(State#state.holdbackQueue), orddict:size(State#state.deliveryQueue) ]),
+%  d("Debug: Hq(~B) Dq(~B)",[ orddict:size(State#state.holdbackQueue), orddict:size(State#state.deliveryQueue) ]),
 
   receive
      { getmsgid, PID } ->
