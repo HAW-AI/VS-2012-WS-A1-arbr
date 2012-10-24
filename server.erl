@@ -70,7 +70,7 @@ loop(State) ->
       end,
       % HoldbackQueue needs to flush?
       % -> do
-      case holdbackqueue_length(State#state.holdbackQueue) div 2 > proplists:get_value(dlqlimit, State#state.config) of
+      case holdbackqueue_length(State#state.holdbackQueue) > proplists:get_value(dlqlimit, State#state.config) div 2 of
         true -> { PushedDeliveryQueue, PushedHoldbackQueue } = update_deliveryqueue_from_holdbackqueue(ShiftedDeliveryQueue, ShiftedHoldbackQueue, force);
         _    -> { PushedDeliveryQueue, PushedHoldbackQueue } = { ShiftedDeliveryQueue, ShiftedHoldbackQueue }
       end,
