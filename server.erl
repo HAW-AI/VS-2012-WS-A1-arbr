@@ -94,6 +94,7 @@ loop(State) ->
 
   after proplists:get_value(difftime, State#state.config) * 1000 ->
 		  log("Server wird heruntergefahren"),
+      debug(State#state.deliveryQueue),
 		  ok
   end.
 
