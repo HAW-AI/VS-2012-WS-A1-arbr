@@ -24,9 +24,10 @@
 
 % * Wenn in der Holdbackqueue von der Anzahl her mehr als die Hälfte an echten Nachrichten enthalten sind, als durch die vorgegebene maximale Anzahl an Nachrichten in der Deliveryqueue stehen können, dann wird, sofern eine Lücke besteht, diese Lücke zwischen Deliveryqueue und Holdbackqueue mit einer Fehlertextzeile geschlossen, etwa: ***Fehlernachricht fuer Nachrichtennummern 11 bis 17 um 16.05 18:01:30,580|.. Es werden keine Lücken innerhalb der Holdbackqueue gefüllt, also Lücken die nach der kleinsten in der Holdbackqueue vorhandenen Textzeilennummer vorkommen! In dem Sinne wird die Holdbackqueue in diesem Fall nicht zwingend geleert, sondern nur bis zur nächsten Lücke geleert.
 
-% * Der Server terminiert sich, wenn die Differenz von aktueller Systemzeit und Zeit der letzten Abfrage eines Clients länger als seine Wartezeit beträgt, d.h. seine Wartezeit wird durch Abfragen der Clients erneut gestartet bzw. bestimmt die maximale Zeit, die der Server ungenutzt läuft.
-
-% * Der Server ist in Erlang/OTP zu implementieren und muss auf jedem Rechner im Labor startbar sein! Bei der Verwendung von Eclipse kann das problematisch sein. Die steuernden Werte sind in einer Datei server.cfg anzugeben. Der Server ist unter dem Namen wk zu registrieren (register(wk,ServerPid)).
+% * Der Server terminiert sich, wenn die Differenz von aktueller Systemzeit und Zeit der letzten Abfrage eines Clients länger als seine Wartezeit beträgt
+% * Der Server ist in Erlang/OTP zu implementieren und muss auf jedem Rechner im Labor startbar sein!
+% * Die steuernden Werte sind in einer Datei server.cfg anzugeben.
+% * Der Server ist unter dem Namen wk zu registrieren (register(wk,ServerPid)).
 
 -record(state,{
     config,
