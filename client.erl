@@ -58,22 +58,22 @@ loop_redakteur(MessageId,Config) ->
 				   loop_redakteur(MessageId+1,Config);
 			   true -> log_redakteur("wird heruntergefahren")
 			end;
-		Any -> 
+		Any ->
 			log_redakteur("hat unbekannte nachricht ~p empfangen",[Any]),
 			loop_redakteur(MessageId,Config)
 	end.
-	
-	
+
+
 loop_leser(Config) ->
 	Config#client_config.serverpid ! {getmessages,self()},
 	receive
-		{Message, true} -> 
+		{Message, false} ->
 			log_leser("Nachricht ~p wurde empfangen",[Message]),
 			loop_leser(Config);
-		{Message, false} -> 
+		{Message, true} ->
 			log_leser("Nachricht ~p wurde empfangen",[Message]),
 			loop_redakteur(1,Config);
-		Any -> 
+		Any ->
 			log_leser("Unbekannte Nachricht ~p  wurde empfangen",[Any]),
 			loop_leser(Config)
 	end.
