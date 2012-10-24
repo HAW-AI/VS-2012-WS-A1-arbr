@@ -46,6 +46,7 @@ start() ->
 
 % Running Server
 loop(State) ->
+  % TODO: Update KnownClients.
   receive
      { getmsgid, PID } ->
       CurrentMessageID = State#state.currentMessageID,
@@ -55,7 +56,7 @@ loop(State) ->
 
     { dropmessage, { Message, ID }} ->
       log("dropmessage {ID ~p, Message ~p}", [ID, Message]),
-      TimestampedMessage = Message ++ " Empfangszeit: " ++ util:timestamp(),
+      TimestampedMessage = append_label(Message, "HoldbackQueue"),
       NewHoldbackQueue = append_message(ID, TimestampedMessage, State#state.holdbackQueue),
       loop(State#state{holdbackQueue=NewHoldbackQueue});
 
@@ -76,6 +77,8 @@ loop(State) ->
 		  log("Server wird heruntergefahren"),
 		  ok
   end.
+
+append_label(Message, Label) -> io_lib:format("~s ~s:~s", [Message, Label, util:timestamp()]).
 
 append_message(Id, Message, Queue) ->
   orddict:append(Id, Message, Queue).
