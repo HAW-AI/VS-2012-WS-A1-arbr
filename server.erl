@@ -47,6 +47,9 @@ start() ->
 % Running Server
 loop(State) ->
   % TODO: Update KnownClients.
+
+  d("Debug: Hq(~B) Dq(~B)",[ orddict:size(State#state.holdbackQueue), orddict:size(State#state.deliveryQueue) ]),
+
   receive
      { getmsgid, PID } ->
       CurrentMessageID = State#state.currentMessageID,
@@ -140,7 +143,7 @@ append_message(Id, Message, Queue) ->
   orddict:append(Id, Message, Queue).
 
 register_shudown(Pid, After) ->
-  timer:send_after(After, Pid, shutdown).
+  timer:send_after(timer:seconds(After), Pid, shutdown).
 
 log_client(PID, Message) -> log_client(PID, Message, []).
 log_client(PID, Message, Data) ->
@@ -151,6 +154,7 @@ log(Message) ->
 log(Message, Data) ->
   util:log(logfile(), "Server " ++ Message, Data).
 
+d(S,D) -> io:format(S++"~n",D).
 debug(X) -> debug(X,"").
 debug(X,M) ->
   io:format("Debug~s: ~p",[M,X]).
