@@ -6,24 +6,11 @@
 -compile([export_all]).
 
 % Server
-% * Die Textzeilen werden vom Server durchnummeriert (beginnend bei 1) und stellen eine eindeutige ID für jede Textzeile dar.
-% * Ein Redakteur-Client hat sich beim Server vor dem Versenden einer Textzeile diese Nummer zu besorgen und in der Zustellung seiner Nachricht an den Server diese Nummer der Textzeile voranzustellen.
-
 % * Empfangszeit Deliveryqueue
 
 % * Ein Lese-Client bekommt auf Anfrage gemäß Nachrichtennummerierung eine noch nicht an ihn ausgelieferte und beim Server bekannte Textzeile geliefert. In einem Flag wird ihm mitgeteilt, ob es noch weitere, für ihn unbekante Nachrichten gibt.
 
 % * Ein Lese-Client, der seit ** Sekunden keine Abfrage mehr gemacht hat, wird beim Server vergessen (unabhängig davon, wann er die letzte Textzeile als Redakteur-Client übertragen hat!). Bei einer erneuten Abfrage (nach dem Vergessen) wird er wie ein unbekannter Lese-Client behandelt.
-
-% * Wenn in der Holdbackqueue von der Anzahl her mehr als die Hälfte an echten Nachrichten enthalten sind,
-% als durch die vorgegebene maximale Anzahl an Nachrichten in der Deliveryqueue stehen können, dann wird, sofern eine Lücke besteht,
-% diese Lücke zwischen Deliveryqueue und Holdbackqueue mit einer Fehlertextzeile geschlossen,
-% etwa: ***Fehlernachricht fuer Nachrichtennummern 11 bis 17 um 16.05 18:01:30,580|..
-
-% * Der Server terminiert sich, wenn die Differenz von aktueller Systemzeit und Zeit der letzten Abfrage eines Clients länger als seine Wartezeit beträgt
-% * Der Server ist in Erlang/OTP zu implementieren und muss auf jedem Rechner im Labor startbar sein!
-% * Die steuernden Werte sind in einer Datei server.cfg anzugeben.
-% * Der Server ist unter dem Namen wk zu registrieren (register(wk,ServerPid)).
 
 -record(state,{
     config,
