@@ -77,7 +77,8 @@ loop(State) ->
       log_client(PID, "getmessages"),
       % Client known?
       % ->
-      PID ! { "Nothing", false },
+      { _, Message } = queue_first(State#state.deliveryQueue),
+      PID ! { Message, false },
       loop(State);
 
     shutdown ->
@@ -94,6 +95,10 @@ loop(State) ->
       debug(State#state.deliveryQueue),
 		  ok
   end.
+
+% returns: { Key, Value }
+queue_first(Q) ->
+  orddict:find(lists:min(orddict:fetch_keys(Q)),Q).
 
 % returns: Dict
 holdbackqueue_filter_old(Id, Q) ->
