@@ -82,7 +82,7 @@ loop(State) ->
       loop(State);
 
     shutdown ->
-      log("shuting down"),
+      log("Zeit zu ende, war schön mit euch."),
       debug(State#state.deliveryQueue),
       exit(0);
 
@@ -91,7 +91,7 @@ loop(State) ->
 		  loop(State)
 
   after proplists:get_value(difftime, State#state.config) * 1000 ->
-		  log("Server wird heruntergefahren"),
+		  log("keine clients, ich geh."),
       debug(State#state.deliveryQueue),
 		  ok
   end.
