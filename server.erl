@@ -3,12 +3,14 @@
 
 %-import(proplists).
 -import(util, [log/3]).
+-import(calendar, [local_time/0, datetime_to_gregorian_seconds/1]).
 -compile([export_all]).
 
 % Server
 % * Empfangszeit Deliveryqueue
 
-% * Ein Lese-Client bekommt auf Anfrage gemäß Nachrichtennummerierung eine noch nicht an ihn ausgelieferte und beim Server bekannte Textzeile geliefert. In einem Flag wird ihm mitgeteilt, ob es noch weitere, für ihn unbekante Nachrichten gibt.
+% * Ein Lese-Client bekommt auf Anfrage gemäß Nachrichtennummerierung eine noch nicht an ihn ausgelieferte und beim Server bekannte Textzeile geliefert.
+% * In einem Flag wird ihm mitgeteilt, ob es noch weitere, für ihn unbekante Nachrichten gibt.
 
 % * Ein Lese-Client, der seit ** Sekunden keine Abfrage mehr gemacht hat, wird beim Server vergessen (unabhängig davon, wann er die letzte Textzeile als Redakteur-Client übertragen hat!). Bei einer erneuten Abfrage (nach dem Vergessen) wird er wie ein unbekannter Lese-Client behandelt.
 
@@ -16,7 +18,13 @@
     config,
     currentMessageID=1,
     holdbackQueue=orddict:new(),
-    deliveryQueue=orddict:new()
+    deliveryQueue=orddict:new(),
+    clients=orddict:new()
+  }).
+
+-record(client, {
+    id=0,
+    time=local_time()
   }).
 
 % Start Server
@@ -32,45 +40,54 @@ start() ->
 loop(State) ->
   % TODO: Update KnownClients.
 
+  CurrentState = State#state{clients=client_current(State#state.clients, proplists:get_value(clientlifetime, State#state.config))},
+
 %  d("Debug: Hq(~B) Dq(~B)",[ orddict:size(State#state.holdbackQueue), orddict:size(State#state.deliveryQueue) ]),
 
   receive
-     { getmsgid, PID } ->
-      CurrentMessageID = State#state.currentMessageID,
-      log_client(PID, "getmsgid {ID ~p}", [CurrentMessageID]),
-      PID ! CurrentMessageID,
-      loop(State#state{currentMessageID=CurrentMessageID+1});
+     { getmsgid, Client } ->
+      ClientedState = CurrentState#state{clients=client_update(Client,CurrentState#state.clients)},
+      CurrentMessageID = ClientedState#state.currentMessageID,
+      log_client(Client, "getmsgid {ID ~p}", [CurrentMessageID]),
+      Client ! CurrentMessageID,
+      loop(ClientedState#state{currentMessageID=CurrentMessageID+1});
 
     { dropmessage, { Message, ID }} ->
       log("dropmessage {ID ~p, Message ~p}", [ID, Message]),
       LabeledMessage = append_label(Message, "HoldbackQueue"),
-      AppendedHoldbackQueue = append_message(ID, LabeledMessage, State#state.holdbackQueue),
-      CleanedHoldbackQueue = holdbackqueue_filter_old(deliveryqueue_last_message_id(State#state.deliveryQueue),AppendedHoldbackQueue),
+      AppendedHoldbackQueue = append_message(ID, LabeledMessage, CurrentState#state.holdbackQueue),
+      CleanedHoldbackQueue = holdbackqueue_filter_old(deliveryqueue_last_message_id(CurrentState#state.deliveryQueue),AppendedHoldbackQueue),
       % DeliveryQueue can be updated?
       % -> do
-      case deliveryqueue_can_be_updated(State#state.holdbackQueue, ID) of
-        true -> { ShiftedDeliveryQueue, ShiftedHoldbackQueue } = update_deliveryqueue_from_holdbackqueue(State#state.deliveryQueue, CleanedHoldbackQueue);
-        _    -> { ShiftedDeliveryQueue, ShiftedHoldbackQueue } = { State#state.deliveryQueue, CleanedHoldbackQueue }
+      case deliveryqueue_can_be_updated(CurrentState#state.holdbackQueue, ID) of
+        true -> { ShiftedDeliveryQueue, ShiftedHoldbackQueue } = update_deliveryqueue_from_holdbackqueue(CurrentState#state.deliveryQueue, CleanedHoldbackQueue);
+        _    -> { ShiftedDeliveryQueue, ShiftedHoldbackQueue } = { CurrentState#state.deliveryQueue, CleanedHoldbackQueue }
       end,
       % HoldbackQueue needs to flush?
       % -> do
-      case holdbackqueue_length(State#state.holdbackQueue) > proplists:get_value(dlqlimit, State#state.config) div 2 of
+      case holdbackqueue_length(CurrentState#state.holdbackQueue) > proplists:get_value(dlqlimit, CurrentState#state.config) div 2 of
         true -> { PushedDeliveryQueue, PushedHoldbackQueue } = update_deliveryqueue_from_holdbackqueue(ShiftedDeliveryQueue, ShiftedHoldbackQueue, force);
         _    -> { PushedDeliveryQueue, PushedHoldbackQueue } = { ShiftedDeliveryQueue, ShiftedHoldbackQueue }
       end,
-      loop(State#state{holdbackQueue=PushedHoldbackQueue, deliveryQueue=deliveryqueue_trim(proplists:get_value(dlqlimit, State#state.config), PushedDeliveryQueue)});
+      loop(CurrentState#state{holdbackQueue=PushedHoldbackQueue, deliveryQueue=deliveryqueue_trim(proplists:get_value(dlqlimit, CurrentState#state.config), PushedDeliveryQueue)});
 
-    { getmessages, PID } ->
-      log_client(PID, "getmessages"),
-      % Client known?
-      % ->
-      { _, Message } = queue_first(State#state.deliveryQueue),
-      PID ! { Message, false },
-      loop(State);
+    { getmessages, Client } ->
+      ClientedState = CurrentState#state{clients=client_update(Client,CurrentState#state.clients)},
+      case queue_not_empty(CurrentState#state.deliveryQueue) of
+        true ->
+          Q = ClientedState#state.deliveryQueue,
+          % Client known?
+          % ->
+          NextMessageId = client_next_message_id(Client,ClientedState#state.clients),
+          { _, Message } = queue_first(Q),
+          Client ! { Message, NextMessageId > deliveryqueue_last_message_id(Q) },
+          log_client(Client, "getmessages { Id:~B }",[NextMessageId]),
+          loop(ClientedState#state{clients=client_update_message_id(Client, NextMessageId, ClientedState#state.clients)});
+        _ -> loop(ClientedState)
+      end;
 
     shutdown ->
       log("Zeit zu ende, war schön mit euch."),
-      debug(State#state.deliveryQueue),
       exit(0);
 
 	  Any ->
@@ -79,9 +96,40 @@ loop(State) ->
 
   after proplists:get_value(difftime, State#state.config) * 1000 ->
 		  log("keine clients, ich geh."),
-      debug(State#state.deliveryQueue),
 		  ok
   end.
+
+% returns: Boolean
+queue_not_empty(Q) -> orddict:size(Q) > 0.
+
+client_current(Clients, Max) ->
+  orddict:filter(
+    fun(_,R) ->
+      time_diff(R#client.time, local_time()) < Max
+    end,
+    Clients
+  ).
+
+time_diff(A,B) ->
+  datetime_to_gregorian_seconds(B) - datetime_to_gregorian_seconds(A).
+
+client_update_message_id(Client, Id, Clients) ->
+  orddict:update( Client, fun(C) -> C#client{id=Id} end, Clients ).
+
+client_update(Client, Clients) ->
+  orddict:update(
+    Client,
+    fun(C) ->
+      C#client{time=local_time()}
+    end,
+    #client{},
+    Clients
+  ).
+
+% returns: Integer
+client_next_message_id(Client, Clients) ->
+  C = orddict:fetch(Client,Clients),
+  C#client.id+1.
 
 % returns: { Key, Value }
 queue_first(Q) ->
@@ -162,8 +210,9 @@ log_client(PID, Message, Data) ->
 
 log(Message) ->
   log(Message, []).
-log(Message, Data) ->
-  util:log(logfile(), "Server " ++ Message, Data).
+log(Message, Data) -> spawn(fun() ->
+  util:log(logfile(), "Server " ++ Message, Data)
+  end).
 
 d(S,D) -> io:format(S++"~n",D).
 debug(X) -> debug(X,"").
