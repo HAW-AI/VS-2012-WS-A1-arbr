@@ -127,6 +127,7 @@ update_deliveryqueue_from_holdbackqueue(Dq,Hq,force) ->
   Message = lists:flatten(io_lib:format("***Fehlernachricht fuer Nachrichtennummern ~B bis ~B um ~s",[ Max, Min, util:timestamp() ])),
   UpdatedDq = append_message(Max+1, Message,Dq),
   update_deliveryqueue_from_holdbackqueue(UpdatedDq,Hq).
+% NOTE: Existing Messages get overwriten
 % returns: { DeliveryQueue, HoldbackQueue }
 update_deliveryqueue_from_holdbackqueue(Dq,Hq) ->
   { Key, Value, UpdatedHq } = holdbackqueue_pop(Hq),
@@ -163,7 +164,7 @@ append_label(Message, Label) ->
 
 % returns: Orddict
 append_message(Id, Message, Queue) ->
-  orddict:append(Id, Message, Queue).
+  orddict:store(Id, Message, Queue).
 
 register_shudown(Pid, After) ->
   timer:send_after(timer:seconds(After), Pid, shutdown).
