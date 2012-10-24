@@ -16,7 +16,7 @@
 
 % * Der Server hält nur die letzten *** Textzeilen vor. Alle anderen werden gelöscht. Dies wird durch die Größe der Deliveryqueue vorgegeben.
 
-% * Der Server fügt einer empfangenen Nachricht jeweils die Empfangszeit beim Eintrag in die Holdbackqueue und die Deliveryqueue hinten/rechts an.
+% * Empfangszeit Deliveryqueue
 
 % * Ein Lese-Client bekommt auf Anfrage gemäß Nachrichtennummerierung eine noch nicht an ihn ausgelieferte und beim Server bekannte Textzeile geliefert. In einem Flag wird ihm mitgeteilt, ob es noch weitere, für ihn unbekante Nachrichten gibt.
 
@@ -54,7 +54,8 @@ loop(State) ->
 
     { dropmessage, { Message, ID }} ->
       log("dropmessage {ID ~p, Message ~p}", [ID, Message]),
-      NewHoldbackQueue = append_message(ID, Message, State#state.holdbackQueue),
+      TimestampedMessage = Message ++ " Empfangszeit: " ++ util:timestamp(),
+      NewHoldbackQueue = append_message(ID, TimestampedMessage, State#state.holdbackQueue),
       loop(State#state{holdbackQueue=NewHoldbackQueue});
 
     { getmessages, PID } ->
