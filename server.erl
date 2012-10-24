@@ -61,11 +61,12 @@ loop(State) ->
       log("dropmessage {ID ~p, Message ~p}", [ID, Message]),
       LabeledMessage = append_label(Message, "HoldbackQueue"),
       AppendedHoldbackQueue = append_message(ID, LabeledMessage, State#state.holdbackQueue),
+      CleanedHoldbackQueue = holdbackqueue_filter_old(deliveryqueue_last_message_id(State#state.deliveryQueue),AppendedHoldbackQueue),
       % DeliveryQueue can be updated?
       % -> do
       case deliveryqueue_can_be_updated(State#state.holdbackQueue, ID) of
-        true -> { ShiftedDeliveryQueue, ShiftedHoldbackQueue } = update_deliveryqueue_from_holdbackqueue(State#state.deliveryQueue, AppendedHoldbackQueue);
-        _    -> { ShiftedDeliveryQueue, ShiftedHoldbackQueue } = { State#state.deliveryQueue, AppendedHoldbackQueue }
+        true -> { ShiftedDeliveryQueue, ShiftedHoldbackQueue } = update_deliveryqueue_from_holdbackqueue(State#state.deliveryQueue, CleanedHoldbackQueue);
+        _    -> { ShiftedDeliveryQueue, ShiftedHoldbackQueue } = { State#state.deliveryQueue, CleanedHoldbackQueue }
       end,
       % HoldbackQueue needs to flush?
       % -> do
@@ -73,7 +74,7 @@ loop(State) ->
         true -> { PushedDeliveryQueue, PushedHoldbackQueue } = update_deliveryqueue_from_holdbackqueue(ShiftedDeliveryQueue, ShiftedHoldbackQueue, force);
         _    -> { PushedDeliveryQueue, PushedHoldbackQueue } = { ShiftedDeliveryQueue, ShiftedHoldbackQueue }
       end,
-      loop(State#state{holdbackQueue=PushedDeliveryQueue, deliveryQueue=PushedHoldbackQueue});
+      loop(State#state{holdbackQueue=PushedHoldbackQueue, deliveryQueue=deliveryqueue_trim(proplists:get_value(dlqlimit, State#state.config), PushedDeliveryQueue)});
 
     { getmessages, PID } ->
       log_client(PID, "getmessages"),
@@ -84,6 +85,7 @@ loop(State) ->
 
     shutdown ->
       log("shuting down"),
+      debug(State#state.deliveryQueue),
       exit(0);
 
 	  Any ->
@@ -94,6 +96,10 @@ loop(State) ->
 		  log("Server wird heruntergefahren"),
 		  ok
   end.
+
+% returns: Dict
+holdbackqueue_filter_old(Id, Q) ->
+  orddict:filter(fun(Key,_) -> Key>Id end, Q).
 
 % returns: { Key, Value, Orddict }
 holdbackqueue_pop(Q) ->
@@ -113,15 +119,29 @@ orddict_fetch_and_erase(Key, Dict) ->
 
 % returns: { DeliveryQueue, HoldbackQueue }
 update_deliveryqueue_from_holdbackqueue(Dq,Hq,force) ->
-  Max = deliveryqueue_last_message_id(Dq) + 1,
-  Min = holdbackqueue_lowest_message_id(Hq) - 1,
+  Max = deliveryqueue_last_message_id(Dq),
+  Min = holdbackqueue_lowest_message_id(Hq),
   Message = lists:flatten(io_lib:format("***Fehlernachricht fuer Nachrichtennummern ~B bis ~B um ~s",[ Max, Min, util:timestamp() ])),
-  UpdatedDq = append_message(Max, Message,Dq),
+  UpdatedDq = append_message(Max+1, Message,Dq),
   update_deliveryqueue_from_holdbackqueue(UpdatedDq,Hq).
 % returns: { DeliveryQueue, HoldbackQueue }
 update_deliveryqueue_from_holdbackqueue(Dq,Hq) ->
   { Key, Value, UpdatedHq } = holdbackqueue_pop(Hq),
   { append_message(Key, Value, Dq), UpdatedHq }.
+
+% returns: Dict
+deliveryqueue_trim(To, Dict) ->
+  case orddict:size(Dict) > To of
+    true -> deliveryqueue_trim(To, deliveryqueue_drop_first(Dict));
+    _    -> Dict
+  end.
+
+% return: Dict
+deliveryqueue_drop_first(Dict) ->
+  case orddict:size(Dict) of
+    0 -> Dict;
+    _ -> orddict:erase(lists:min(orddict:fetch_keys(Dict)),Dict)
+  end.
 
 % returns: Integer
 deliveryqueue_last_message_id(Q) ->
@@ -157,7 +177,7 @@ log(Message, Data) ->
 d(S,D) -> io:format(S++"~n",D).
 debug(X) -> debug(X,"").
 debug(X,M) ->
-  io:format("Debug~s: ~p",[M,X]).
+  io:format("Debug~s: ~p~n",[M,X]).
 
 logfile() ->
   'NServer.log'.
