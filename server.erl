@@ -32,7 +32,8 @@
 -record(state,{
     config,
     currentMessageID=0,
-    holdbackQueue=orddict:new()
+    holdbackQueue=orddict:new(),
+    deliveryQueue=orddict:new()
   }).
 
 % Start Server
@@ -56,16 +57,30 @@ loop(State) ->
 
     { dropmessage, { Message, ID }} ->
       log("dropmessage {ID ~p, Message ~p}", [ID, Message]),
-      TimestampedMessage = append_label(Message, "HoldbackQueue"),
-      NewHoldbackQueue = append_message(ID, TimestampedMessage, State#state.holdbackQueue),
-      loop(State#state{holdbackQueue=NewHoldbackQueue});
+      LabeledMessage = append_label(Message, "HoldbackQueue"),
+      AppendedHoldbackQueue = append_message(ID, LabeledMessage, State#state.holdbackQueue),
+      % DeliveryQueue can be updated?
+      % -> do
+      case deliveryqueue_can_be_updated(State#state.holdbackQueue, ID) of
+        true -> { ShiftedDeliveryQueue, ShiftedHoldbackQueue } = update_deliveryqueue_from_holdbackqueue(State#state.deliveryQueue, AppendedHoldbackQueue);
+        _    -> { ShiftedDeliveryQueue, ShiftedHoldbackQueue } = { State#state.deliveryQueue, AppendedHoldbackQueue }
+      end,
+      % HoldbackQueue needs to flush?
+      % -> do
+      case holdbackqueue_length(State#state.holdbackQueue) div 2 > proplists:get_value(dlqlimit, State#state.config) of
+        true -> { PushedDeliveryQueue, PushedHoldbackQueue } = update_deliveryqueue_from_holdbackqueue(ShiftedDeliveryQueue, ShiftedHoldbackQueue, force);
+        _    -> { PushedDeliveryQueue, PushedHoldbackQueue } = { ShiftedDeliveryQueue, ShiftedHoldbackQueue }
+      end,
+      loop(State#state{holdbackQueue=PushedDeliveryQueue, deliveryQueue=PushedHoldbackQueue});
 
     { getmessages, PID } ->
       log_client(PID, "getmessages"),
+      % Client known?
+      % ->
       PID ! { "Nothing", false },
       loop(State);
 
-    { shutdown } ->
+    shutdown ->
       log("shuting down"),
       exit(0);
 
@@ -78,13 +93,25 @@ loop(State) ->
 		  ok
   end.
 
-append_label(Message, Label) -> io_lib:format("~s ~s:~s", [Message, Label, util:timestamp()]).
+holdbackqueue_length(Hq) ->
+  orddict:size(Hq).
+
+update_deliveryqueue_from_holdbackqueue(Dq,Hq,force) -> {Dq, Hq}.
+update_deliveryqueue_from_holdbackqueue(Dq,Hq) -> {Dq, Hq}.
+
+deliveryqueue_last_message_id(Q) -> Q, 1.
+
+deliveryqueue_can_be_updated(Queue, Id) ->
+  deliveryqueue_last_message_id(Queue) +1 == Id.
+
+append_label(Message, Label) ->
+  lists:flatten(io_lib:format("~s ~s:~s", [Message, Label, util:timestamp()])).
 
 append_message(Id, Message, Queue) ->
   orddict:append(Id, Message, Queue).
 
 register_shudown(Pid, After) ->
-  timer:send_after(After, Pid, {shutdown}).
+  timer:send_after(After, Pid, shutdown).
 
 log_client(PID, Message) -> log_client(PID, Message, []).
 log_client(PID, Message, Data) ->
