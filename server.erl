@@ -6,9 +6,8 @@
 -compile([export_all]).
 
 % Server
-% * Die Textzeilen werden vom Server durchnummeriert (beginnend bei 1) und stellen eine eindeutige ID für jede Textzeile dar. Ein Redakteur-Client hat sich beim Server vor dem Versenden einer Textzeile diese Nummer zu besorgen und in der Zustellung seiner Nachricht an den Server diese Nummer der Textzeile voranzustellen. Der Server merkt sich nicht, von wem eine Textzeile gesendet wurde, insbesondere schaut er nicht in die Textzeile hinein!
-
-% * Da die dem Server zugestellten Textzeilen bzgl. der Nummerierung in zusammenhängender Reihenfolge erscheinen sollen und Nachrichten mit Textzeilen verloren gehen können bzw. in nicht sortierter Reihenfolge eintreffen können, arbeitet der Server intern mit einer Deliveryqueue und einer Holdbackqueue.
+% * Die Textzeilen werden vom Server durchnummeriert (beginnend bei 1) und stellen eine eindeutige ID für jede Textzeile dar.
+% * Ein Redakteur-Client hat sich beim Server vor dem Versenden einer Textzeile diese Nummer zu besorgen und in der Zustellung seiner Nachricht an den Server diese Nummer der Textzeile voranzustellen.
 
 % * In der Deliveryqueue stehen die Nachrichten, die an Clients ausgeliefert werden können, maximal *** viele Textzeilen.
 
@@ -31,7 +30,7 @@
 
 -record(state,{
     config,
-    currentMessageID=0,
+    currentMessageID=1,
     holdbackQueue=orddict:new(),
     deliveryQueue=orddict:new()
   }).
@@ -93,20 +92,50 @@ loop(State) ->
 		  ok
   end.
 
+% returns: { Key, Value, Orddict }
+holdbackqueue_pop(Q) ->
+  orddict_fetch_and_erase(holdbackqueue_lowest_message_id(Q),Q).
+
+% returns: Integer
+holdbackqueue_lowest_message_id(Q) ->
+  lists:min(orddict:fetch_keys(Q)).
+
+% return: Integer
 holdbackqueue_length(Hq) ->
   orddict:size(Hq).
 
-update_deliveryqueue_from_holdbackqueue(Dq,Hq,force) -> {Dq, Hq}.
-update_deliveryqueue_from_holdbackqueue(Dq,Hq) -> {Dq, Hq}.
+% returns: { Key, Value, Orddict }
+orddict_fetch_and_erase(Key, Dict) ->
+  { Key, orddict:fetch(Key, Dict), orddict:erase(Key, Dict) }.
 
-deliveryqueue_last_message_id(Q) -> Q, 1.
+% returns: { DeliveryQueue, HoldbackQueue }
+update_deliveryqueue_from_holdbackqueue(Dq,Hq,force) ->
+  Max = deliveryqueue_last_message_id(Dq) + 1,
+  Min = holdbackqueue_lowest_message_id(Hq) - 1,
+  Message = lists:flatten(io_lib:format("***Fehlernachricht fuer Nachrichtennummern ~B bis ~B um ~s",[ Max, Min, util:timestamp() ])),
+  UpdatedDq = append_message(Max, Message,Dq),
+  update_deliveryqueue_from_holdbackqueue(UpdatedDq,Hq).
+% returns: { DeliveryQueue, HoldbackQueue }
+update_deliveryqueue_from_holdbackqueue(Dq,Hq) ->
+  { Key, Value, UpdatedHq } = holdbackqueue_pop(Hq),
+  { append_message(Key, Value, Dq), UpdatedHq }.
 
+% returns: Integer
+deliveryqueue_last_message_id(Q) ->
+  case orddict:size(Q) of
+    0 -> 0;
+    _ -> lists:max(orddict:fetch_keys(Q))
+  end.
+
+% returns: Boolean
 deliveryqueue_can_be_updated(Queue, Id) ->
   deliveryqueue_last_message_id(Queue) +1 == Id.
 
+% returns: String
 append_label(Message, Label) ->
   lists:flatten(io_lib:format("~s ~s:~s", [Message, Label, util:timestamp()])).
 
+% returns: Orddict
 append_message(Id, Message, Queue) ->
   orddict:append(Id, Message, Queue).
 
@@ -120,7 +149,11 @@ log_client(PID, Message, Data) ->
 log(Message) ->
   log(Message, []).
 log(Message, Data) ->
-  util:log(logfile(), Message, Data).
+  util:log(logfile(), "Server " ++ Message, Data).
+
+debug(X) -> debug(X,"").
+debug(X,M) ->
+  io:format("Debug~s: ~p",[M,X]).
 
 logfile() ->
   'NServer.log'.
