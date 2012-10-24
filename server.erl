@@ -6,13 +6,7 @@
 -import(calendar, [local_time/0, datetime_to_gregorian_seconds/1]).
 -compile([export_all]).
 
-% Server
 % * Empfangszeit Deliveryqueue
-
-% * Ein Lese-Client bekommt auf Anfrage gemäß Nachrichtennummerierung eine noch nicht an ihn ausgelieferte und beim Server bekannte Textzeile geliefert.
-% * In einem Flag wird ihm mitgeteilt, ob es noch weitere, für ihn unbekante Nachrichten gibt.
-
-% * Ein Lese-Client, der seit ** Sekunden keine Abfrage mehr gemacht hat, wird beim Server vergessen (unabhängig davon, wann er die letzte Textzeile als Redakteur-Client übertragen hat!). Bei einer erneuten Abfrage (nach dem Vergessen) wird er wie ein unbekannter Lese-Client behandelt.
 
 -record(state,{
     config,
