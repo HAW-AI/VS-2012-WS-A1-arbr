@@ -4,9 +4,7 @@
 
 ```
 $ erl -name term1 -setcockie example
-1> net_admin:ping('term2@local').
-2> nodes(). % ['term2@local']
-3> server:start(). % Registriert 'wk' global
+3> server:start(). % Registriert 'wk' local
 ```
 
 
@@ -15,11 +13,5 @@ $ erl -name term1 -setcockie example
 ```
 $ erl -name term2 -setcockie example
 1> nodes(). % ['term1@local']
-2> client:start(wk).
-```
-
-# Local 'schnell test'
-```
-$ erl
-1> client:start(server:start()).
+2> client:start('term1@local'). % client:start() % is local
 ```
