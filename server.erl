@@ -74,9 +74,12 @@ loop(State) ->
           % Client known?
           % ->
           NextMessageId = client_next_message_id(Client,ClientedState#state.clients),
-          { _, Message } = queue_first(Q),
-          Client ! { Message, NextMessageId > deliveryqueue_last_message_id(Q) },
-          log_client(Client, "getmessages { Id:~B }",[NextMessageId]),
+          case queue_fetch(NextMessageId, Q) of
+            { _, Message } ->
+              Client ! { Message, NextMessageId > deliveryqueue_last_message_id(Q) },
+              log_client(Client, "getmessages { Id:~B }",[NextMessageId]);
+            _ -> ok
+          end,
           loop(ClientedState#state{clients=client_update_message_id(Client, NextMessageId, ClientedState#state.clients)});
         _ -> loop(ClientedState)
       end;
@@ -125,6 +128,10 @@ client_update(Client, Clients) ->
 client_next_message_id(Client, Clients) ->
   C = orddict:fetch(Client,Clients),
   C#client.id+1.
+
+% returns: { Key, Value }
+queue_fetch(Key, Q) ->
+  orddict:find(Key, Q).
 
 % returns: { Key, Value }
 queue_first(Q) ->
