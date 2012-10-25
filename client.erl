@@ -19,8 +19,9 @@
 %%
 %% API Functions
 %%
-start(ServerPID)-> start(1, ServerPID).
-start(ClientNr, ServerPID) when is_number(ClientNr)->
+start() -> start(list_to_atom(net_adm:localhost())).
+start(ServerNode)-> start(1, ServerNode).
+start(ClientNr, ServerNode) when is_number(ClientNr)->
 	{ok, ConfigListe} = file:consult("client.cfg"),
 	Clients = proplists:get_value(clients, ConfigListe),
 	LifeTime = proplists:get_value(lifetime, ConfigListe),
@@ -32,11 +33,11 @@ start(ClientNr, ServerPID) when is_number(ClientNr)->
 							lifetime = LifeTime * 1000,
 							servername = Servername,
 							sendeintervall = Sendeintervall,
-							serverpid = ServerPID,
+							serverpid = { Servername, ServerNode },
 							starttime = StartTime * 1000},
 	spawn(fun() -> log("Client ~p (~p)gestartet",[self(), ClientNr]), loop_redakteur(1,Config) end),
 	if ClientNr < Config#client_config.clients ->
-		   start(ClientNr+1, ServerPID);
+		   start(ClientNr+1, ServerNode);
 	   true -> ok
 	end.
 
