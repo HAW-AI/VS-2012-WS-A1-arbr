@@ -74,9 +74,10 @@ loop(State) ->
           % Client known?
           % ->
           NextMessageId = client_next_message_id(Client,ClientedState#state.clients),
-          case queue_fetch(NextMessageId, Q) of
+          Id = max(NextMessageId, lists:min(orddict:fetch_keys(Q))),
+          case queue_fetch(Id, Q) of
             { _, Message } ->
-              Client ! { Message, NextMessageId > deliveryqueue_last_message_id(Q) },
+              Client ! { Message, Id > deliveryqueue_last_message_id(Q) },
               log_client(Client, "getmessages { Id:~B }",[NextMessageId]);
             _ -> ok
           end,
