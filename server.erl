@@ -26,7 +26,8 @@ start() ->
   {ok, Config} = file:consult('server.cfg'),
   State = #state{config=Config},
   PID = spawn(fun() -> log("Server gestartet."), loop(State) end),
-  register(proplists:get_value(servername, Config), PID),
+  % re_register to enforce registration
+  global:re_register_name(proplists:get_value(servername, Config), PID),
   register_shudown(PID, proplists:get_value(lifetime, State#state.config)),
   PID.
 
