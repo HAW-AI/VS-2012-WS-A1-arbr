@@ -204,9 +204,9 @@ log_client(PID, Message, Data) ->
 
 log(Message) ->
   log(Message, []).
-log(Message, Data) -> spawn(fun() ->
+log(Message, Data) ->
   util:log(logfile(), "Server " ++ Message, Data)
-  end).
+  .
 
 d(S,D) -> io:format(S++"~n",D).
 debug(X) -> debug(X,"").
