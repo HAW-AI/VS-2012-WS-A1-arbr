@@ -1,8 +1,25 @@
-VS-2012-WS-A1-arbr
-==================
+# Verteilte Systeme - Winter Semester 2012 - Aufgabe 1
 
-Verteilte Systeme - Winter Semester 2012 - Aufgabe 1
+## Server starten
 
-Interessante Links
-------------------
-* http://www.erlang.org/doc/getting_started/conc_prog.html
+```
+$ erl -name term1 -setcockie example
+1> net_admin:ping('term2@local').
+2> nodes(). % ['term2@local']
+3> server:start(). % Registriert 'wk' global
+```
+
+
+## Client starten
+
+```
+$ erl -name term2 -setcockie example
+1> nodes(). % ['term1@local']
+2> client:start(wk).
+```
+
+# Local 'schnell test'
+```
+$ erl
+1> client:start(server:start()).
+```
