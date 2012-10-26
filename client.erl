@@ -107,8 +107,8 @@ log(Message, Data) ->
 logfile() ->
   "NClient.log".
 
-newTime(Time,2) when Time>2000 -> Time div 2;
-newTime(Time,1) -> Time*2;
+newTime(Time,2) when Time>2000 -> Time - (Time div 2);
+newTime(Time,1) -> Time + (Time div 2);
 newTime(Time, _) -> Time.
 
 timeout(TimeNow, StartTime, LifeTime) ->
