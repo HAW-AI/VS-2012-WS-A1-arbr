@@ -32,7 +32,7 @@ start(ClientNr, ServerNode) when is_number(ClientNr)->
 							clients = Clients,
 							lifetime = LifeTime * 1000,
 							servername = Servername,
-							sendeintervall = Sendeintervall,
+							sendeintervall = Sendeintervall * 1000,
 							serverpid = { Servername, ServerNode },
 							starttime = StartTime * 1000},
 	spawn(fun() -> log("Client ~p (~p)gestartet",[self(), ClientNr]), loop_redakteur(1,Config) end),
@@ -46,8 +46,7 @@ start(ClientNr, ServerNode) when is_number(ClientNr)->
 %%
 loop_redakteur(5,Config) -> loop_leser(Config);
 loop_redakteur(MessageId,Config) ->
-	SleepTime = newTime(Config#client_config.sendeintervall,random:uniform(2)),
-	sleep(SleepTime),
+	timer:sleep(Config#client_config.sendeintervall),
 	Config#client_config.serverpid ! {getmsgid, self()},
 	receive
 		MsgID when is_number(MsgID)->
@@ -56,7 +55,16 @@ loop_redakteur(MessageId,Config) ->
 			{_,TimeNow,_} = now(),
 			Timeout = timeout(TimeNow * 1000, Config#client_config.starttime, Config#client_config.lifetime),
 			if Timeout ->
-				   loop_redakteur(MessageId+1,Config);
+				   SleepTime = newTime(Config#client_config.sendeintervall,random:uniform(2)),
+				   NewConfig = #client_config{
+											  clients = Config#client_config.clients,
+											  lifetime = Config#client_config.lifetime,
+							                  servername = Config#client_config.servername,
+							                  sendeintervall = SleepTime,
+							                  serverpid = Config#client_config.serverpid,
+							                  starttime = Config#client_config.starttime
+											  },
+				   loop_redakteur(MessageId+1,NewConfig);
 			   true -> log_redakteur("wird heruntergefahren")
 			end;
 		Any ->
@@ -79,11 +87,6 @@ loop_leser(Config) ->
 			loop_leser(Config)
 	end.
 
-sleep(T) ->
-	receive
-		after T -> ok
-	end.
-
 getMessage(MsgID) when is_number(MsgID) ->
 	{ok, Name} = inet:gethostname(),
 	lists:flatten(io_lib:format("client@~s ~p ~pte Nachricht. Sendezeit: ~s (Team 14)",[Name, self(), MsgID, util:timestamp()])).
@@ -102,9 +105,9 @@ log(Message, Data) ->
   util:log(logfile(), Message, Data).
 
 logfile() ->
-  'NClient.log'.
+  "NClient.log".
 
-newTime(Time,2) when Time>2000 -> Time/2;
+newTime(Time,2) when Time>2000 -> Time div 2;
 newTime(Time,1) -> Time*2;
 newTime(Time, _) -> Time.
 
